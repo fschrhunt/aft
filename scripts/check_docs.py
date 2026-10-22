@@ -1,5 +1,6 @@
 """Check guide organization and repository-local inline Markdown links offline."""
 
+import utils.session
 from pathlib import Path
 import re
 from urllib.parse import unquote, urlsplit

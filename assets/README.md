@@ -12,7 +12,11 @@ for dark backgrounds, matching the sibling ask and tap assets.
 
 The logo uses two equal spaces in a single frame. Its outer corners are moderately
 rounded; the center divider keeps the small softened joins from the wordmark's
-`t`. The wordmark reuses tap's `a` and `t` outlines with a matching `f`.
+`t`. The wordmark adapts tap's `a` and `t` outlines with a matching `f`.
+All three vertical stems are 11.06 units wide, with 1.68-unit rounding at their
+exposed stem terminals. The `f` and `t` share their height, baseline, crossbar
+position, and crossbar thickness. The `a` keeps its curved overshoot; the
+approved letter gaps are preserved.
 
 All marks use geometric outlines with no font or raster dependencies. Scale
 proportionally and leave clear space around them. The README switches lockups
