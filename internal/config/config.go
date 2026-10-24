@@ -183,17 +183,6 @@ func Load() (Config, error) {
 	if c.Hosts == nil {
 		c.Hosts = map[string]HostConfig{}
 	}
-	// Mounts are matched by their real path. One saved under a symlink in
-	// the home folder (~/room for /Volumes/Room), as older versions or a
-	// hand edit could, is spelled out here; the home folder is local disk,
-	// so this cannot block on a share, unlike resolving the mounts themselves.
-	if h, err := os.UserHomeDir(); err == nil {
-		for i, m := range c.Mounts {
-			if strings.HasPrefix(filepath.Clean(m.Local), h+string(filepath.Separator)) {
-				c.Mounts[i].Local = RealPath(m.Local)
-			}
-		}
-	}
 	return c, nil
 }
 
@@ -312,14 +301,20 @@ func writeFile(path string, b []byte) error {
 	return os.Rename(tmp, path)
 }
 
-// FindProject returns the on project containing dir, if any, with the local
-// root it was turned on at.
+// FindProject returns the project dir belongs to, with its root as stored,
+// choosing the most specific. Roots are kept by their real path (aft on sees
+// to it), and dir is compared as given and by its real spelling, so a folder
+// reached through a symlink (~/room for /Volumes/Room) is found either way.
+// Only dir is ever resolved: it is where the caller stands, so it is alive;
+// a stored root may sit on a share whose server is offline, and resolving it
+// would hang every command.
 func (s State) FindProject(dir string) (root string, p Project, ok bool) {
-	dir = filepath.Clean(dir)
 	best := ""
-	for r := range s.Projects {
-		if within(dir, r) && len(r) > len(best) {
-			best = r
+	for _, d := range spellings(dir) {
+		for r := range s.Projects {
+			if _, inside := relInside(d, r); inside && len(r) > len(best) {
+				best = r
+			}
 		}
 	}
 	if best == "" {
@@ -328,17 +323,16 @@ func (s State) FindProject(dir string) (root string, p Project, ok bool) {
 	return best, s.Projects[best], true
 }
 
-// within reports whether dir is root or inside it, spelled either way: a
-// project turned on through a symlink (~/room is /Volumes/Room) matches the
-// real path too.
-func within(dir, root string) bool {
-	if _, ok := relInside(dir, root); ok {
-		return true
+// spellings is a path as given and, when that differs, by its real path.
+func spellings(p string) []string {
+	p = filepath.Clean(p)
+	if real := RealPath(p); real != p {
+		return []string{p, real}
 	}
-	_, ok := relInside(resolve(dir), resolve(root))
-	return ok
+	return []string{p}
 }
 
+// relInside returns dir relative to root when dir is root or inside it.
 func relInside(dir, root string) (string, bool) {
 	rel, err := filepath.Rel(root, dir)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
@@ -356,11 +350,14 @@ func resolve(p string) string {
 
 // RemoteDir maps a local directory inside a project to its server directory.
 func RemoteDir(root string, p Project, dir string) string {
-	rel, ok := relInside(dir, root)
-	if !ok {
-		rel, _ = relInside(resolve(dir), resolve(root))
+	rel := "."
+	for _, d := range spellings(dir) {
+		if r, ok := relInside(d, root); ok {
+			rel = r
+			break
+		}
 	}
-	if rel == "" || rel == "." {
+	if rel == "." {
 		return p.Dir
 	}
 	return p.Dir + "/" + filepath.ToSlash(rel)
@@ -430,17 +427,13 @@ func DetachByte(s string) (byte, error) {
 
 // MapLocal returns the host and server directory for a local path that lives
 // under a configured mount, choosing the most specific mount. Mounts are kept
-// by their real path (aft mount add, detection and Load see to it), so the
-// path is compared as given and, when it is reached through a symlink
-// (~/room may be /Volumes/Room), by its real spelling too. Mounts themselves
-// are never resolved here, which could block on a share whose server is
-// offline; callers pass paths they have just used, which cannot.
+// by their real path (aft mount add and detection see to it), so the path is
+// compared as given and, when it is reached through a symlink (~/room may be
+// /Volumes/Room), by its real spelling too. Mounts themselves are never
+// resolved here, which could block on a share whose server is offline;
+// callers pass paths they have just used, which cannot.
 func (c Config) MapLocal(local string) (host, remote string, ok bool) {
-	local = filepath.Clean(local)
-	forms := []string{local}
-	if real := RealPath(local); real != local {
-		forms = append(forms, real)
-	}
+	forms := spellings(local)
 	best := -1
 	var chosen Mount
 	var rest string

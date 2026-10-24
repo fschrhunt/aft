@@ -94,6 +94,11 @@ func TestPastedFilesKeepsMacNarrowSpace(t *testing.T) {
 	if !ok || len(got) != 1 || filepath.Base(got[0]) != name {
 		t.Fatalf("PastedFiles(%q) = %q, %v", paste, got, ok)
 	}
+	// Pasted back to the app, the name is escaped as a terminal would: only
+	// the ordinary space gets a backslash.
+	if e := Escape(name); strings.Contains(e, "\\\u202f") || !strings.Contains(e, `Screen\ Recording`) {
+		t.Fatalf("Escape(%q) = %q", name, e)
+	}
 }
 
 // TestDroppable copies files dropped from home or a temporary directory, and

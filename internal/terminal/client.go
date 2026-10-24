@@ -32,6 +32,7 @@ import (
 	"github.com/arocomputer/aft/internal/bridge/transport"
 	"github.com/arocomputer/aft/internal/bridge/udp"
 	"github.com/arocomputer/aft/internal/home"
+	sess "github.com/arocomputer/aft/internal/session"
 	"github.com/arocomputer/aft/internal/session/install"
 	"github.com/arocomputer/aft/internal/ui"
 	"github.com/arocomputer/aft/internal/vt"
@@ -195,6 +196,9 @@ type link interface {
 	Wait() string
 }
 
+// sshLink is the session relayed through an ssh process: Close kills the
+// process, and Wait reaps it and returns what the relay wrote to stderr, which
+// is how a failure to start a session is explained.
 type sshLink struct{ p *transport.Proc }
 
 func (l sshLink) Read(b []byte) (int, error)  { return l.p.Stdout.Read(b) }
@@ -202,6 +206,8 @@ func (l sshLink) Write(b []byte) (int, error) { return l.p.Stdin.Write(b) }
 func (l sshLink) Close()                      { l.p.Kill() }
 func (l sshLink) Wait() string                { msg, _ := l.p.Wait(); return msg }
 
+// udpLink is the session reached directly over QUIC; Wait just closes it, as a
+// dropped connection has nothing to say.
 type udpLink struct{ net.Conn }
 
 func (l udpLink) Close()       { l.Conn.Close() }
@@ -261,10 +267,13 @@ func (c *session) dial() (link, error) {
 					if conn, err := udp.Dial(addr, got.Offer); err == nil {
 						return udpLink{conn}, nil
 					}
+					// The host offered UDP and it did not get through: the
+					// network blocks it, so stop asking for this client.
+					c.udpBlocked = true
 				}
 			}
-			// UDP is blocked, or the server or session predates it.
-			c.udpBlocked = true
+			// Otherwise the request itself failed (an older server, a slow
+			// answer): use SSH this time and ask again on the next connect.
 		}
 	}
 	args := []string{"attach", c.id}
@@ -587,11 +596,11 @@ func (c *session) prefixCommand(t Token) bool {
 // closed: what ended, where, and how, if it failed.
 func (c *session) exitMessage(e proto.ExitInfo) func() {
 	what := "the program"
-	if len(c.command) > 0 {
+	switch {
+	case sess.IsShell(c.command):
+		what = "the shell" // aft HOST's login shell
+	case len(c.command) > 0:
 		what = filepath.Base(c.command[0])
-		if len(c.command) == 3 && c.command[0] == "sh" && strings.Contains(c.command[2], "SHELL") {
-			what = "the shell" // aft HOST's login shell
-		}
 	}
 	where := c.o.Host.Name
 	if c.o.Host.IsLocal() {

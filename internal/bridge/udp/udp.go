@@ -62,6 +62,7 @@ type Listener struct {
 	admitted chan net.Conn
 	done     chan struct{} // closed by Close
 	once     sync.Once
+	open     sync.WaitGroup // connections admitted and not yet closed
 }
 
 // Listen opens a listener on a free port in the mosh range, with a fresh
@@ -137,7 +138,21 @@ func (l *Listener) admit(c *quic.Conn) (net.Conn, error) {
 		return nil, errors.New("bad token")
 	}
 	s.SetReadDeadline(time.Time{})
-	return &conn{Stream: s, c: c}, nil
+	l.open.Add(1)
+	return &conn{Stream: s, c: c, closed: l.open.Done}, nil
+}
+
+// Drain waits, up to timeout, for every admitted connection to close, so
+// what was last written to them, such as the frame saying the application
+// exited, is delivered and acknowledged before the process ends. A lost
+// datagram is retransmitted only while the process lives.
+func (l *Listener) Drain(timeout time.Duration) {
+	done := make(chan struct{})
+	go func() { l.open.Wait(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(timeout):
+	}
 }
 
 // Close stops accepting; streams already open keep running.
@@ -189,7 +204,8 @@ func Dial(host string, o Offer) (net.Conn, error) {
 // conn makes one QUIC stream a net.Conn; closing it closes the connection.
 type conn struct {
 	*quic.Stream
-	c *quic.Conn
+	c      *quic.Conn
+	closed func() // tells the listener the connection is gone, if it has one
 }
 
 func (c *conn) LocalAddr() net.Addr  { return c.c.LocalAddr() }
@@ -207,6 +223,9 @@ func (c *conn) Close() error {
 		case <-time.After(3 * time.Second):
 		}
 		c.c.CloseWithError(0, "")
+		if c.closed != nil {
+			c.closed()
+		}
 	}()
 	return err
 }

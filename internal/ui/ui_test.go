@@ -69,3 +69,18 @@ func TestTableAlignsStyledCells(t *testing.T) {
 		t.Fatalf("misaligned:\n%s", ansi.Strip(string(out)))
 	}
 }
+
+// TestTableToleratesExtraCells prints a row with more cells than the header
+// instead of panicking.
+func TestTableToleratesExtraCells(t *testing.T) {
+	r, w, _ := os.Pipe()
+	saved := os.Stdout
+	os.Stdout = w
+	Table([]string{"A"}, [][]string{{"x", "extra"}})
+	os.Stdout = saved
+	w.Close()
+	out, _ := io.ReadAll(r)
+	if !strings.Contains(ansi.Strip(string(out)), "x  extra") {
+		t.Fatalf("got %q", out)
+	}
+}

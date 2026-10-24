@@ -319,8 +319,8 @@ func OutputContext(ctx context.Context, h Host, stdin io.Reader, args ...string)
 	defer stop()
 	err = cmd.Wait()
 	out := stdout.Bytes()
-	if ctx.Err() != nil {
-		return out, ctx.Err()
+	if err != nil && ctx.Err() != nil {
+		return out, ctx.Err() // stopped on request; a command that finished first stands
 	}
 	if err != nil {
 		msg := strings.TrimSpace(stderr.String())

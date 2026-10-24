@@ -3,3 +3,5 @@
 __pycache__/
 *.pyc
 /internal/session/install/embed/aft-server-*
+config.bat
+node_modules

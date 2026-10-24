@@ -10,7 +10,6 @@ import (
 	"path/filepath"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/arocomputer/aft/internal/bridge/transport"
 	"github.com/arocomputer/aft/internal/home"
@@ -201,7 +200,9 @@ func splitWords(s string) (words []string, ok bool) {
 func Escape(p string) string {
 	var b strings.Builder
 	for _, r := range p {
-		if unicode.IsSpace(r) || strings.ContainsRune(`\'"$`+"`"+`!&|;<>()[]{}*?#~`, r) {
+		// The same whitespace splitWords splits on; a narrow no-break space in
+		// a macOS name is left as terminals leave it.
+		if r == ' ' || r == '\t' || r == '\n' || r == '\r' || strings.ContainsRune(`\'"$`+"`"+`!&|;<>()[]{}*?#~`, r) {
 			b.WriteByte('\\')
 		}
 		b.WriteRune(r)

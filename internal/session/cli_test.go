@@ -365,3 +365,18 @@ func TestStaleOrMissingSocketIsNotRunning(t *testing.T) {
 		t.Fatalf("stale socket: %v, want not running", err)
 	}
 }
+
+// TestNewIDClaimsTheName makes two names picked back to back differ, because
+// each is claimed by its record file the moment it is picked.
+func TestNewIDClaimsTheName(t *testing.T) {
+	t.Setenv("AFT_HOME", t.TempDir())
+	a, b := NewID(), NewID()
+	if a == b {
+		t.Fatalf("both sessions were named %q", a)
+	}
+	for _, id := range []string{a, b} {
+		if fi, err := os.Stat(RecordPath(id)); err != nil || fi.Size() != 0 {
+			t.Fatalf("%s is not claimed by an empty record: %v", id, err)
+		}
+	}
+}

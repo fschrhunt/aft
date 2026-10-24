@@ -76,3 +76,35 @@ func TestSilentClientDoesNotBlockOthers(t *testing.T) {
 		t.Fatalf("real client admitted after %v: %v", time.Since(start), err)
 	}
 }
+
+// TestDrainWaitsForTheClientToHangUp keeps the listener's side alive until an
+// admitted connection is closed by both ends, so the last frames reach the
+// client, and gives up after its timeout when the client never hangs up.
+func TestDrainWaitsForTheClientToHangUp(t *testing.T) {
+	l, err := Listen()
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer l.Close()
+	client, err := Dial("127.0.0.1", l.Offer)
+	if err != nil {
+		t.Fatal(err)
+	}
+	server, err := l.Accept()
+	if err != nil {
+		t.Fatal(err)
+	}
+	server.Write([]byte("bye"))
+	server.Close()
+	start := time.Now()
+	l.Drain(5 * time.Second) // the client has not hung up: this waits the full 3 s close grace
+	if d := time.Since(start); d < 2*time.Second {
+		t.Fatalf("drain returned after %v without the client hanging up", d)
+	}
+	got := make([]byte, 3)
+	client.SetReadDeadline(time.Now().Add(time.Second))
+	if _, err := io.ReadFull(client, got); err != nil || string(got) != "bye" {
+		t.Fatalf("the last frame was lost: %q %v", got, err)
+	}
+	client.Close()
+}

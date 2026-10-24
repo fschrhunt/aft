@@ -73,6 +73,10 @@ func Start(server []string, o Options) error {
 		case <-time.After(20 * time.Millisecond):
 		}
 	}
+	// The name was claimed with an empty record (see NewID); give it back.
+	if fi, err := os.Stat(RecordPath(o.ID)); err == nil && fi.Size() == 0 {
+		os.Remove(RecordPath(o.ID))
+	}
 	tail, _ := os.ReadFile(filepath.Join(home.Logs(), o.ID+".log"))
 	msg := strings.TrimSpace(string(tail))
 	if len(msg) > 500 {

@@ -129,6 +129,7 @@ func distance(a, b string) int {
 	return prev[len(b)]
 }
 
+// printUsage prints the help screen: the commands by group.
 func printUsage() {
 	fmt.Println(ui.Bold("aft") + ui.Dim(" — your agents on your server, your terminal on your machine"))
 	for _, g := range commands {
@@ -185,6 +186,7 @@ func moveShellBlocks() {
 	}
 }
 
+// inFiles names the files a shell block was found edited in, for a message.
 func inFiles(files []string) string {
 	if len(files) == 0 {
 		return ""

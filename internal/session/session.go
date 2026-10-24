@@ -225,7 +225,11 @@ func Serve(o Options) error {
 	}
 	defer os.Remove(RecordPath(o.ID))
 
-	os.Remove(SocketPath(o.ID))
+	if c, err := net.Dial("unix", SocketPath(o.ID)); err == nil {
+		c.Close()
+		return fmt.Errorf("session %s is already running", o.ID)
+	}
+	os.Remove(SocketPath(o.ID)) // a socket a dead session left behind
 	ln, err := net.Listen("unix", SocketPath(o.ID))
 	if err != nil {
 		return err
@@ -250,10 +254,12 @@ func Serve(o Options) error {
 	s.exit = exitInfo(err)
 	close(s.exited)
 	s.udpMu.Lock()
-	if s.udp != nil {
-		s.udp.Close()
-	}
+	l := s.udp
 	s.udpMu.Unlock()
+	if l != nil {
+		l.Close()
+		defer l.Drain(3 * time.Second) // after the Exit frame below is sent
+	}
 	s.mu.Lock()
 	switch {
 	case s.cur != nil:
@@ -350,7 +356,11 @@ func (s *Session) readPTY() {
 			s.dirty = true
 			if t := cleanTitle(s.term.Title()); t != s.record.Title {
 				s.record.Title = t
-				writeJSON(RecordPath(s.opts.ID), s.record)
+				select {
+				case <-s.exited: // the record is being removed; do not write it back
+				default:
+					writeJSON(RecordPath(s.opts.ID), s.record)
+				}
 			}
 			if s.cur != nil {
 				s.cur.send(proto.Output, buf[:n])

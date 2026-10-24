@@ -143,8 +143,8 @@ func Table(header []string, rows [][]string) {
 				c = Dim(c)
 			}
 			b.WriteString(c)
-			if i < len(r)-1 {
-				b.WriteString(strings.Repeat(" ", widths[i]-lipgloss.Width(c)+2))
+			if i < len(r)-1 && i < len(widths) {
+				b.WriteString(strings.Repeat(" ", max(widths[i]-lipgloss.Width(c), 0)+2))
 			}
 		}
 		fmt.Println(b.String())

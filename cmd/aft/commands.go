@@ -350,9 +350,10 @@ func cmdOn(args []string) int {
 	if err != nil {
 		return fail(err)
 	}
-	// The project is exactly this folder. An aft.toml here can pin its host and
-	// server directory for every machine.
-	root := cwd
+	// The project is exactly this folder, kept by its real path so it is found
+	// from either spelling (see config.FindProject). An aft.toml here can pin
+	// its host and server directory for every machine.
+	root := config.RealPath(cwd)
 	if repo, repoRoot, ok := config.LoadRepo(cwd); ok && repoRoot == cwd {
 		if *hostName == "" {
 			*hostName = repo.Host
@@ -455,9 +456,6 @@ func cmdOff(args []string) int {
 	return 0
 }
 
-// shellCommand is the session command behind aft HOST: the user's login shell.
-var shellCommand = []string{"sh", "-c", `exec "${SHELL:-/bin/sh}" -l`}
-
 // cmdHostShell is aft HOST: a login shell on h in a session, or, given a
 // command, that command run there once, as ssh HOST CMD does. The shell is
 // like ssh but survives disconnects, roams over UDP and predicts typing. It
@@ -486,7 +484,7 @@ func cmdHostShell(cfg config.Config, h transport.Host, args []string) int {
 		return fail(err)
 	}
 	opts.Host = h
-	opts.Command = shellCommand
+	opts.Command = session.ShellCommand
 	opts.Dir = dir
 	if dir == "" && h.IsLocal() {
 		opts.Dir, _ = os.UserHomeDir()
@@ -499,7 +497,7 @@ func cmdHostShell(cfg config.Config, h transport.Host, args []string) int {
 		}
 	}
 	// Come back to the shell already open in this directory, if there is one.
-	isShell := func(r session.Record) bool { return strings.Join(r.Command, " ") == strings.Join(shellCommand, " ") }
+	isShell := func(r session.Record) bool { return session.IsShell(r.Command) }
 	if id := launcher.ExistingSession(h, opts.Dir, isShell); id != "" {
 		ui.Note("reattaching to %s %s", id, ui.Dim("· aft kill "+id+" starts a fresh one"))
 		opts.SessionID = id
@@ -643,7 +641,7 @@ func describe(r session.Record) string {
 	if len(r.Command) > 0 {
 		name = filepath.Base(r.Command[0])
 	}
-	if strings.Join(r.Command, " ") == strings.Join(shellCommand, " ") {
+	if session.IsShell(r.Command) {
 		name = "shell" // aft HOST's login-shell wrapper
 	}
 	for _, a := range config.DefaultAgents {
