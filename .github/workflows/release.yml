@@ -220,6 +220,42 @@ jobs:
           ref: main
           fetch-depth: 0
           token: ${{ secrets.RELEASE_TOKEN }}
+          persist-credentials: false
+      - name: Compare direct release-token Git authorization
+        if: github.event_name == 'workflow_dispatch' && inputs.formula_only
+        env:
+          GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
+        run: |
+          python3 - <<'PYTHON'
+          import base64
+          import json
+          import os
+          import urllib.error
+          import urllib.request
+
+          token = os.environ['GH_TOKEN']
+          kind = 'fine-grained PAT' if token.startswith('github_pat_') else 'classic PAT' if token.startswith('ghp_') else 'other token'
+          print('Credential type:', kind)
+          identity = urllib.request.Request('https://api.github.com/user',
+              headers={'Authorization': 'Bearer ' + token, 'Accept': 'application/vnd.github+json'})
+          with urllib.request.urlopen(identity, timeout=30) as response:
+              print(json.dumps({'account': json.load(response)['login'],
+                                'classic_token_scopes': response.headers.get('X-OAuth-Scopes', '')}))
+          auth = base64.b64encode(('x-access-token:' + token).encode()).decode()
+          for repo in ('arocomputer/ask', 'arocomputer/aft'):
+              # Request only the Git write-service advertisement; never send a push.
+              url = f'https://github.com/{repo}.git/info/refs?service=git-receive-pack'
+              request = urllib.request.Request(url, headers={'Authorization': 'Basic ' + auth,
+                  'User-Agent': 'git/2.55.0', 'Accept': 'application/x-git-receive-pack-advertisement'})
+              try:
+                  with urllib.request.urlopen(request, timeout=30) as response:
+                      print(json.dumps({'repository': repo, 'git_write_service_status': response.status}))
+              except urllib.error.HTTPError as error:
+                  print(json.dumps({'repository': repo, 'git_write_service_status': error.code,
+                                    'sso_required': bool(error.headers.get('X-GitHub-SSO'))}))
+              except urllib.error.URLError:
+                  print(json.dumps({'repository': repo, 'git_write_service_status': 'network error'}))
+          PYTHON
       - name: Update the Homebrew formula for the latest published release
         env:
           GH_TOKEN: ${{ secrets.RELEASE_TOKEN }}
@@ -229,6 +265,7 @@ jobs:
         run: |
           set -euo pipefail
           [[ "$TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          gh auth setup-git
           git merge-base --is-ancestor "refs/tags/$TAG^{commit}" origin/main
           latest=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)
           test "$TAG" = "$latest" || { echo 'Not the latest stable release; leaving the formula unchanged.'; exit 0; }
