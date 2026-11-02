@@ -4,3 +4,9 @@ __pycache__/
 *.pyc
 /internal/session/install/embed/aft-server-*
 /aft
+
+# Agent worktrees: claude -w, and codex/opencode/pi -w
+/.claude/worktrees/
+/.codex/worktrees/
+/.opencode/worktrees/
+/.pi/worktrees/
