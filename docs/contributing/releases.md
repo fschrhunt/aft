@@ -64,6 +64,14 @@ before creating the draft. Verify a downloaded archive with:
 gh attestation verify ARCHIVE --repo fschrhunt/aft
 ```
 
+The v0.1.0 release predates the repository transfer. Verify its provenance under the
+original organization instead:
+
+```sh
+gh attestation verify ARCHIVE --owner arocomputer \
+  --signer-workflow arocomputer/aft/.github/workflows/release.yml
+```
+
 Publishing the draft triggers checksum-verified native installation checks on
 Linux and macOS. After those pass, the `formula` job generates `aft.rb` from the
 published checksums and opens a release PR against `main`. Review and merge it
