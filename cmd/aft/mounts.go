@@ -41,7 +41,6 @@ func detectMount(dir string) (detected, bool) {
 	return chosen, best >= 0
 }
 
-// listMounts reads the OS mount table and returns network mounts.
 func listMounts() []detected {
 	if runtime.GOOS == "linux" {
 		return parseProcMounts()
@@ -90,9 +89,8 @@ func parseBSDMounts() []detected {
 		if !ok {
 			continue
 		}
-		point := rest
 		if i := strings.LastIndex(rest, " ("); i >= 0 {
-			point = rest[:i]
+			point := rest[:i]
 			opts := rest[i+2:]
 			switch {
 			case strings.HasPrefix(opts, "smbfs"):
@@ -222,7 +220,6 @@ func serverPathFor(h transport.Host, d detected) (string, error) {
 	return strings.TrimRight(path, "/"), nil
 }
 
-// cmdMount lists, adds or removes mount mappings.
 func cmdMount(args []string) int {
 	if len(args) == 0 || args[0] == "list" {
 		cfg, err := config.Load()
