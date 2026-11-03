@@ -6,7 +6,8 @@ Read [the design](docs/contributing/plan.md) before changing architecture.
 - Preserve unrelated changes. Never revert or reformat code outside the task.
 - Never add real credentials, host names or machine paths.
 - Prefer simple, direct implementations. Add abstractions only when needed.
-- Comment functions, types and packages with a concise purpose and contract.
+- Document public contracts and non-obvious constraints or reasons.
+  Omit comments that merely restate clear names or code.
   Update affected comments and docs with each behavior change.
 - Add focused tests for meaningful behavior; avoid redundant smoke tests.
 - Do not publish, push, tag, run releases or change the user's machine without
