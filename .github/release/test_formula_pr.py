@@ -204,7 +204,7 @@ class ReleaseEnvironmentTests(unittest.TestCase):
     """Every release-token consumer must use the protected release environment."""
 
     def test_token_jobs_declare_release_environment(self):
-        workflows = Path(__file__).resolve().parents[1] / ".github/workflows"
+        workflows = Path(__file__).resolve().parents[2] / ".github/workflows"
         for workflow in workflows.glob("*.yml"):
             for job in re.split(r"(?m)^  [A-Za-z_][A-Za-z_0-9-]*:\n", workflow.read_text())[1:]:
                 if "secrets.RELEASE_TOKEN" in job:
@@ -212,6 +212,6 @@ class ReleaseEnvironmentTests(unittest.TestCase):
                         self.assertRegex(job, r"(?m)^    environment: release$")
 
     def test_formula_discovery_token_has_no_pr_write_permission(self):
-        workflow = Path(__file__).resolve().parents[1] / ".github/workflows/release.yml"
+        workflow = Path(__file__).resolve().parents[2] / ".github/workflows/release.yml"
         job = workflow.read_text().split("\n  formula:\n", 1)[1]
         self.assertNotIn("pull-requests: write", job.split("\n  install:", 1)[0])

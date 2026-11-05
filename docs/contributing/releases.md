@@ -112,6 +112,9 @@ behavior on every CPU/OS combination.
 
 ## Local packaging
 
+Release packaging, formula generation and their tests live in `.github/release/`.
+General documentation checks stay in `scripts/`; `./x test` runs both Python suites.
+
 `./x release-check [vX.Y.Z]` uses a temporary directory and removes its archives.
 Without a version it qualifies a development build; a version selects the exact
 changelog section and verifies that version in the native binaries.

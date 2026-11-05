@@ -47,6 +47,7 @@ case "$task" in
     [ -e internal/session/install/embed/aft-server-linux-amd64.gz ] || ./x servers
     go test -race ./...
     python3 -m unittest discover -s scripts -p 'test_*.py'
+    python3 -m unittest discover -s .github/release -p 'test_*.py'
     ;;
   setup)
     # Preview setup with private configuration and no remote access.
@@ -88,11 +89,11 @@ case "$task" in
     ;;
   release-check)
     [ "$#" -le 1 ] || usage
-    exec python3 scripts/release.py check "$@"
+    exec python3 .github/release/release.py check "$@"
     ;;
   dist)
     [ "$#" -eq 1 ] || usage
-    exec python3 scripts/release.py dist "$1"
+    exec python3 .github/release/release.py dist "$1"
     ;;
   *) usage ;;
 esac
