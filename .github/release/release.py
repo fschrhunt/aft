@@ -11,7 +11,7 @@ import subprocess
 import tarfile
 import tempfile
 
-ROOT = Path(__file__).resolve().parent.parent
+ROOT = Path(__file__).resolve().parents[2]
 TARGETS = (("linux", "amd64"), ("linux", "arm64"),
            ("darwin", "amd64"), ("darwin", "arm64"))
 

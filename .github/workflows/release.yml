@@ -237,5 +237,5 @@ jobs:
           latest=$(gh api "repos/$GH_REPO/releases/latest" --jq .tag_name)
           test "$TAG" = "$latest" || { echo 'Not the latest stable release; leaving the formula unchanged.'; exit 0; }
           gh release download "$TAG" --pattern checksums.txt --output "$RUNNER_TEMP/checksums.txt"
-          python3 scripts/formula.py "$TAG" "$RUNNER_TEMP/checksums.txt" > aft.rb
-          python3 scripts/formula_pr.py
+          python3 .github/release/formula.py "$TAG" "$RUNNER_TEMP/checksums.txt" > aft.rb
+          python3 .github/release/formula_pr.py
